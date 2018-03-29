@@ -3,6 +3,7 @@
 'use strict';
 
 // cmd line interface for trade pnl app
+let storage = require('./storage').makeStorage();
 
 let path = require('path');
 let pkg = require( path.join(__dirname, 'package.json') );
@@ -51,14 +52,7 @@ async function get_trades(since) {
     try {
         let history = await kraken.api('TradesHistory', { type : 'no position', start : 'T3KZB7-DGV5O-BJGN4C' } ); //'TJFQJU-2P7FB-EKRZ73'
         let trades = history.result.trades
-        log(trades);
-        for (const [key, value] of Object.entries(trades)) {
-            log("\nKey is " + key);
-            log(value);
-        }
-
-        let trade = trades[0];
-        log(trade);
+        return trades;
     } catch(e) {
         log("Error in get trades");
         log(e);
@@ -83,18 +77,50 @@ Key is TWVLTZ-K5FK6-SFOLL7
 
 */
 
+
+
 let main = function(pair) {
     log("Starting Trade PnL...");
-    log("pair is " + pair);
-    get_rate(pair);
+    
+    // connect to the db
+    // TODO find the most recent trade
+
+    // fetch all trades since the last trade from the exchange
+    let new_trades = await get_trades(0);
+    log("Fetched trades:\n");
+    log(new_trades);
+    log(new_trades.length);
+    // sort the trades, oldest first
+    // TODO
+    
+    // store the new trades in the database
+    for (const [tx_id, trade] of Object.entries(new_trades)) {
+        trade.ext_id = tx_id;
+        log(trade);
+        storage.save_trade(trade);
+    }
+    log("Saved all trades\n");
+    // calculate position and pnl for the new trades
+    // store those in the db
+    //
+    // output results. PnL for all new trades
+    // if no new trades, then show the last 5.
+    //
+    // Fetch live spot and show live PnL
+
+//    log("pair is " + pair);
+//    get_rate(pair);
 //    get_balance();
-    get_trades(0);
+    
+	let trades = storage.retrieve_positions();
+	console.log(trades);
+	storage.close();
 }
 
 
-
-if ( typeof parser.pair !== 'undefined' && parser.pair ) {
-    main(parser.pair);
-} else { // if program was called with no arguments, show help.
-    parser.help();
-}
+main(parser.pair);
+//if ( typeof parser.pair !== 'undefined' && parser.pair ) {
+//    main(parser.pair);
+//} else { // if program was called with no arguments, show help.
+//    parser.help();
+//}
