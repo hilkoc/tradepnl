@@ -29,13 +29,19 @@ const CREATE_TABLE_POSITIONS = "CREATE TABLE IF NOT EXISTS positions ( \
 ;
 
 const CREATE_VIEW_POSITIONS = "CREATE VIEW IF NOT EXISTS view_positions as  \
-    	SELECT id, time, pair, price, type, volume, position, average_open, cash_pnl, fee \
+    	SELECT id, datetime(time,'unixepoch') as time, pair, price, type, volume, \
+    	position, average_open, cash_pnl, fee \
 	FROM trades INNER JOIN positions ON trades.id = positions.trade_id ;";
 
 const SAVE_TRADE = "INSERT INTO trades (ext_id, pair, time, type, price, volume, fee) VALUES (?, ?, ?, ?, ?, ?, ?) ;";
 const SAVE_POSITION = "INSERT INTO positions (trade_id, position, average_open, cash_pnl) VALUES (?, ?, ?, ?) ;";
 const GET_POSITION = "SELECT * FROM view_positions ;";
-const GET_LAST_TRADE = "SELECT * FROM trades WHERE id = (SELECT MAX(id) FROM trades);";
+const SELECT_LAST_TRADE = "SELECT * FROM trades WHERE id = (SELECT MAX(id) FROM trades ";
+const GET_LAST_TRADE = SELECT_LAST_TRADE + ");";
+const GET_LAST_TRADE_PAIR = SELECT_LAST_TRADE + "WHERE pair = ? );";
+
+const GET_LAST_POSITION = "SELECT * FROM positions WHERE trade_id = \
+    	(SELECT MAX(id) FROM trades WHERE trades.pair = ? );";
 
 class Storage {
     /** Manages the connection with the database */
@@ -69,6 +75,12 @@ class Storage {
                     return console.error(err.message);
                 }
                 console.log('Created view...');
+            })
+            .run("PRAGMA foreign_keys=ON", (err) => {
+                if (err) {
+                    return console.error(err.message);
+                }
+                console.log('Foreign keys enabled');
             });
 	});
     }
@@ -119,9 +131,15 @@ class Storage {
         });
     }
     
-    get_last_trade() {
+    get_last_trade(pair = null) {
+	let query = GET_LAST_TRADE;
+	let params = [];
+	if (pair) {
+	    query = GET_LAST_TRADE_PAIR;
+	    params.push(pair);
+	}
 	return new Promise((resolve, reject) => {
-	    this.db.get(GET_LAST_TRADE, [], (err, row) => {
+	    this.db.get(query, params, (err, row) => {
 		if (err) {
 		    reject(err);
 		}
@@ -137,10 +155,32 @@ class Storage {
 	});
     }
     
+    get_last_position(pair) {
+	let query = GET_LAST_POSITION;
+	let params = [pair];
+	return new Promise((resolve, reject) => {
+	    this.db.get(query, params, (err, row) => {
+		if (err) {
+		    reject(err);
+		}
+		if (row) {
+		    console.log(`Last Position ${row.trade_id} ${row.position}  ${row.average_open}  ${row.cash_pnl}`);
+		    resolve(row);
+		} else {
+		    console.log("No previous position found!");
+		    let zero_position = { trade_id: null,
+			    position: 0,
+			    average_open: 1,
+			    cash_pnl: 0 };
+		    resolve(zero_position);
+		}
+	    });
+	});
+    }
+    
 }
 
-module.exports.makeStorage = function (db_file) {
-    if (!db_file) { db_file = DB_FILE;}
+module.exports.makeStorage = function (db_file = DB_FILE) {
     let storage = new Storage(db_file);
     return storage;
 }

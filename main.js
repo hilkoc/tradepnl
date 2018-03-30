@@ -57,8 +57,12 @@ async function get_rate(ccypair) {
 
 /** Since can be a timestamp or a tx_id. */
 async function get_trades(since) {
+    let params =  { type: 'no position'}
+    if (since) {
+	params.start = since;
+    }
     try {
-        let history = await kraken.api('TradesHistory', { type: 'no position', start: since } ); //'TJFQJU-2P7FB-EKRZ73' // 'T3KZB7-DGV5O-BJGN4C'
+        let history = await kraken.api('TradesHistory', params ); //'TJFQJU-2P7FB-EKRZ73' // 'T3KZB7-DGV5O-BJGN4C'
         let trades = history.result.trades
         return trades;
     } catch(e) {
@@ -86,6 +90,30 @@ Key is TWVLTZ-K5FK6-SFOLL7
 */
 
 
+/** See https://github.com/askmike/gekko/issues/2028 */
+function calculatePosition(trade, prev_position) {
+    let trade_volume = trade.vol;
+    let new_position, avg_open, cpnl;
+    if (trade.type == 'buy') {
+	new_position = prev_position.position + trade_volume;
+	
+	let prev_volume = prev_position.posiiton;
+	avg_open = (prev_volume * prev_position.average_open + trade_volume * trade.price) / (prev_volume + trade_volume);
+	cpnl = 0;
+    } else {
+	// Sell trade
+	new_position = prev_position.position - trade_volume;
+	avg_open = prev_position.average_open;
+	cpnl = trade.volume * (trade.price - avg_open)
+    }
+    
+    let position = {  trade_id: null, // set after function returns
+	    position: new_position,
+	    average_open: avg_open,
+	    cash_pnl: cpnl };
+    return position;
+}
+
 
 let main = async function(pair) {
     log("Starting Trade PnL...");
@@ -96,7 +124,7 @@ let main = async function(pair) {
     log(last_trade);
     
     // fetch all trades since the last trade from the exchange
-    let new_trades = await get_trades(last_trade ? last_trade.ext_id : 'T3KZB7-DGV5O-BJGN4C'); // change to 'null' later
+    let new_trades = await get_trades(last_trade ? last_trade.ext_id : 'T3KZB7-DGV5O-BJGN4C'); //TODO change to 'null' later
     
     // sort the trades, oldest first
     let sorted_trades = [];
@@ -117,15 +145,23 @@ let main = async function(pair) {
 	    console.error(`trade time: ${trade.time}  is before prev_trade time ${prev_trade.time}`);
 	    throw "Trades are not in order!"
 	}
+	
 	log(trade);
 	let lastID = await storage.save_trade(trade);
-	console.log(`A row has been inserted with rowid ${lastID}`);
+	console.log(`Trade inserted with rowid ${lastID}`);
+	
+	// calculate position and pnl for the new trades
+	// store those in the db
+	let prev_position = await storage.get_last_position(trade.pair);
+	let position = calculatePosition(trade, prev_position);
+	position.trade_id = lastID;
+	
+	let position_id = await storage.save_position(position);
+	console.log(`Position inserted with rowid ${position_id}`);
     }
     log("Saved all trades.\n");
     
-    // calculate position and pnl for the new trades
-    // store those in the db
-    //
+
     // output results. PnL for all new trades
     // if no new trades, then show the last 5.
     //
@@ -135,8 +171,8 @@ let main = async function(pair) {
 //    get_rate(pair);
 //    get_balance();
     
-    let trades = storage.retrieve_positions();
-    console.log(trades);
+    let positions = storage.retrieve_positions();
+    //console.log(trades);
     storage.close();
 }
 

@@ -31,12 +31,18 @@ async function test_init_database() {
     storage.close();
 }
 
-function test_get_last_trade() {
+async function test_get_last_trade() {
     let storage = require('./storage').makeStorage();
     
-    let trade = storage.get_last_trade();
-    
+    let trade = await storage.get_last_trade();
     console.log(trade);
+    
+    
+    let pair = 'XETHZUSD';
+    console.log("Again for pair " + pair);
+    trade = await storage.get_last_trade(pair);
+    console.log(trade);
+    
     storage.close();
 }
 
@@ -46,6 +52,6 @@ function test_read_envs() {
     console.log(api_key);
 }
 
-test_init_database();
+//test_init_database();
 //test_read_envs();
-//test_get_last_trade();
+test_get_last_trade();
