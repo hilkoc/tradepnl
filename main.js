@@ -68,6 +68,7 @@ async function get_trades(since) {
     } catch(e) {
         log("Error in get trades");
         log(e);
+        return [];
     }
 }
 
@@ -146,19 +147,21 @@ let main = async function(pair) {
 	    throw "Trades are not in order!"
 	}
 	
-	log(trade);
+	log(trade.type + ' ' + trade.price);
 	let lastID = await storage.save_trade(trade);
-	console.log(`Trade inserted with rowid ${lastID}`);
+	log(`Trade inserted with rowid ${lastID}`);
 	
 	// calculate position and pnl for the new trades
 	// store those in the db
 	let prev_position = await storage.get_last_position(trade.pair);
 	let position = calculatePosition(trade, prev_position);
 	position.trade_id = lastID;
-	console.log(`Saving position ${position}`);
+	log('Saving position');
+	log(position);
 	
 	let position_id = await storage.save_position(position);
-	console.log(`Position inserted with rowid ${position_id}`);
+	log(position_id + '\n');
+	//console.log(`Position inserted with rowid ${position_id}`);
     }
     log("Saved all trades.\n");
     

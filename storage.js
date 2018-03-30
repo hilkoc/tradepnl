@@ -41,7 +41,7 @@ const GET_LAST_TRADE = SELECT_LAST_TRADE + ");";
 const GET_LAST_TRADE_PAIR = SELECT_LAST_TRADE + "WHERE pair = ? );";
 
 const GET_LAST_POSITION = "SELECT * FROM positions WHERE trade_id = \
-    	(SELECT MAX(id) FROM trades WHERE trades.pair = ? );";
+    	(SELECT max(id) FROM trades INNER JOIN positions ON id = trade_id GROUP BY pair HAVING pair = ? );";
 
 const zero_position = { trade_id: null,
 	position: 0,
@@ -84,7 +84,7 @@ class Storage {
     
     save_trade(trade) {
 	return new Promise((resolve, reject) => {
-	    console.log("saving trade " + trade);
+	    //console.log("saving trade " + trade);
 	    this.db.run(SAVE_TRADE, [trade.ext_id, trade.pair, trade.time, trade.type, trade.price, trade.vol, trade.fee], function(err) {
             if (err) {
         	console.log(err.message);
@@ -97,7 +97,7 @@ class Storage {
     
     save_position(position) {
 	return new Promise((resolve, reject) => {
-	    console.log("saving position " + position);
+	    //console.log("saving position " + position);
 	    this.db.run(SAVE_POSITION, [position.trade_id, position.position, position.average_open, position.cash_pnl], function(err) {
             if (err) {
         	console.log(err.message);
@@ -111,7 +111,8 @@ class Storage {
     _position_row_to_str(row) {
 	// id, datetime(time,'unixepoch') as time, pair, price, type, volume,
 	// position, average_open, cash_pnl, fee
-	return `${row.id} ${row.time} ${row.pair} | ${row.price}  ${row.type} ${row.volume} | p: ${row.position} ao: ${row.average_open}  c: ${row.cash_pnl} fee: ${row.fee}`
+	return `${row.id} ${row.time} ${row.pair} | ${row.price.toFixed(2)}  ${row.type} ${row.volume.toFixed(2)} |\
+	p: ${row.position.toFixed(2)} ao: ${row.average_open.toFixed(2)}  c: ${row.cash_pnl.toFixed(2)} fee: ${row.fee.toFixed(2)}`
     }
     
     retrieve_positions() {
@@ -138,7 +139,7 @@ class Storage {
 		}
 		if (row) {
 		    console.log("Last Trade is:");
-		    console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price} ${row.volume} ${row.fee}`);
+		    console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price.toFixed(2)} ${row.volume.toFixed(2)} ${row.fee.toFixed(2)}`);
 		    resolve(row);
 		} else {
 		    console.log("No trades found!");
@@ -151,13 +152,16 @@ class Storage {
     get_last_position(pair) {
 	let query = GET_LAST_POSITION;
 	let params = [pair];
+//	console.log("querying last position for pair " + pair);
+
 	return new Promise((resolve, reject) => {
 	    this.db.get(query, params, (err, row) => {
 		if (err) {
+		    console.error(err.message);
 		    reject(err);
 		}
 		if (row) {
-		    console.log(`Last Position ${row.trade_id} ${row.position}  ${row.average_open}  ${row.cash_pnl}`);
+		    console.log(`Last Position ${row.trade_id} p: ${row.position.toFixed(2)} ao: ${row.average_open.toFixed(2)} c: ${row.cash_pnl.toFixed(2)}`);
 		    resolve(row);
 		} else {
 		    console.log("No previous position found!");
