@@ -60,14 +60,16 @@ class Storage {
     }
     
     save_trade(trade) {
-        console.log("saving trade " + trade);
-        this.db.run(SAVE_TRADE, [trade.ext_id, trade.pair, trade.time, trade.type, trade.price, trade.vol, trade.fee], function(err) {
+	return new Promise((resolve, reject) => {
+	    console.log("saving trade " + trade);
+	    this.db.run(SAVE_TRADE, [trade.ext_id, trade.pair, trade.time, trade.type, trade.price, trade.vol, trade.fee], function(err) {
             if (err) {
-              return console.log(err.message);
+        	console.log(err.message);
+        	reject(err);
             }
-            // get the last insert id
-            console.log(`A row has been inserted with rowid ${this.lastID}`);
-          });
+            	resolve(this.lastID);
+            });
+	});
     }
     
     save_position(position) {

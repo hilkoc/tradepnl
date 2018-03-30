@@ -97,30 +97,32 @@ let main = async function(pair) {
     
     // fetch all trades since the last trade from the exchange
     let new_trades = await get_trades(last_trade ? last_trade.ext_id : 'T3KZB7-DGV5O-BJGN4C'); // change to 'null' later
-    log("Fetched trades:\n");
     
     // sort the trades, oldest first
     let sorted_trades = [];
     for (const [tx_id, trade] of Object.entries(new_trades)) {
         trade.ext_id = tx_id;
-        log(trade);
+        // log(trade);
         sorted_trades.unshift(trade); // Add at beginning to reverse the order.
     }
     
+    log("Fetched " + sorted_trades.length + " trades.");
     // store the new trades in the database, while checking that they are sorted
     let index, trade, prev_trade;
-    for (index = 0; index < trades.length; index++) {
+    for (index = 0; index < sorted_trades.length; index++) {
 	prev_trade = trade;
-	trade = trades[index];
+	trade = sorted_trades[index];
 	
 	if (prev_trade && trade.time < prev_trade.time) {
 	    console.error(`trade time: ${trade.time}  is before prev_trade time ${prev_trade.time}`);
 	    throw "Trades are not in order!"
 	}
-	log(trade);    
-	storage.save_trade(trade);
+	log(trade);
+	let lastID = await storage.save_trade(trade);
+	console.log(`A row has been inserted with rowid ${lastID}`);
     }
-    log("Saved all trades\n");
+    log("Saved all trades.\n");
+    
     // calculate position and pnl for the new trades
     // store those in the db
     //
