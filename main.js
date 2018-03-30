@@ -104,7 +104,7 @@ function calculatePosition(trade, prev_position) {
 	// Sell trade
 	new_position = prev_position.position - trade_volume;
 	avg_open = prev_position.average_open;
-	cpnl = trade.volume * (trade.price - avg_open)
+	cpnl = trade.volume * (trade.price - avg_open);
     }
     
     let position = {  trade_id: null, // set after function returns
@@ -155,6 +155,7 @@ let main = async function(pair) {
 	let prev_position = await storage.get_last_position(trade.pair);
 	let position = calculatePosition(trade, prev_position);
 	position.trade_id = lastID;
+	console.log(`Saving position ${position}`);
 	
 	let position_id = await storage.save_position(position);
 	console.log(`Position inserted with rowid ${position_id}`);

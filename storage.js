@@ -43,56 +43,43 @@ const GET_LAST_TRADE_PAIR = SELECT_LAST_TRADE + "WHERE pair = ? );";
 const GET_LAST_POSITION = "SELECT * FROM positions WHERE trade_id = \
     	(SELECT MAX(id) FROM trades WHERE trades.pair = ? );";
 
+const zero_position = { trade_id: null,
+	position: 0,
+	average_open: 99.99,
+	cash_pnl: 0};
+
 class Storage {
     /** Manages the connection with the database */
     
+    on_error(success_msg=null) {
+	return (err) => {
+	    if (err) {
+		console.error(err.message);
+		throw err;
+	    }
+	    if (success_msg) {
+		console.log(success_msg);
+	    }
+	}
+    }
+    
     constructor(db_file) {
-        this.db = new sqlite3.Database(db_file, (err) => {
-            if (err) {
-                return console.error(err.message);
-            }
-        });
+        this.db = new sqlite3.Database(db_file, this.on_error("Constructed Storage instance using " + db_file));
         this.init();
-        console.log("Constructed Storage instance using " + db_file);
     }
     
     /** Create tables and initialize the database. */
     init() {
 	this.db.serialize(() => {
-            this.db.run(CREATE_TABLE_TRADES, (err) => {
-                if (err) {
-                    return console.error(err.message);
-                }
-            })
-            .run(CREATE_TABLE_POSITIONS, (err) => {
-                if (err) {
-                    return console.error(err.message);
-                }
-                console.log('Created table positions..');
-            })
-            .run(CREATE_VIEW_POSITIONS, (err) => {
-                if (err) {
-                    return console.error(err.message);
-                }
-                console.log('Created view...');
-            })
-            .run("PRAGMA foreign_keys=ON", (err) => {
-                if (err) {
-                    return console.error(err.message);
-                }
-                console.log('Foreign keys enabled');
-            });
+            this.db.run(CREATE_TABLE_TRADES, this.on_error("Created table trades"))
+            .run(CREATE_TABLE_POSITIONS, this.on_error("Created table positions"))
+            .run(CREATE_VIEW_POSITIONS, this.on_error("Created view"))
+            .run("PRAGMA foreign_keys=ON", this.on_error("Foreign keys enabled"));
 	});
     }
     
     close() {
-        this.db.close((err) => {
-            if (err) {
-                return console.error(err.message);
-            }
-                console.log('Closed the database connection.');
-            }
-        );
+        this.db.close(this.on_error('Closed database connection'));
     }
     
     save_trade(trade) {
@@ -121,13 +108,19 @@ class Storage {
 	});
     }
     
+    _position_row_to_str(row) {
+	// id, datetime(time,'unixepoch') as time, pair, price, type, volume,
+	// position, average_open, cash_pnl, fee
+	return `${row.id} ${row.time} ${row.pair} | ${row.price}  ${row.type} ${row.volume} | p: ${row.position} ao: ${row.average_open}  c: ${row.cash_pnl} fee: ${row.fee}`
+    }
+    
     retrieve_positions() {
         this.db.each(GET_POSITION, [], (err, row) => {
             if (err) {
+        	console.error(err.message);
                 throw err;
             }
-            console.log(row);
-            //console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price} ${row.volume} ${row.fee}`);
+            console.log(this._position_row_to_str(row));
         });
     }
     
@@ -168,10 +161,6 @@ class Storage {
 		    resolve(row);
 		} else {
 		    console.log("No previous position found!");
-		    let zero_position = { trade_id: null,
-			    position: 0,
-			    average_open: 1,
-			    cash_pnl: 0 };
 		    resolve(zero_position);
 		}
 	    });
