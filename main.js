@@ -22,8 +22,15 @@ let log = function(msg) {
 
 // KRAKEN stuff, to move into separate module
 let async_module = require('async');
-const key          = process.env.API_KEY;
-const secret       = process.env.API_SECRET;
+
+/*
+ * Before starting, run:  source api_keys.sh
+ * where api_keys.sh is a file containing;
+ * * export API_KEY=my_exchange_api_key
+ * * export API_SECRET=my_exchange_api_private_key
+ */
+const key          = process.env.API_KEY; 
+const secret       = process.env.API_SECRET; 
 const KrakenClient = require('kraken-api');
 const kraken       = new KrakenClient(key, secret);
  

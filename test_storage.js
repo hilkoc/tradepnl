@@ -28,4 +28,11 @@ function test_init_database() {
 	storage.close();
 }
 
-test_init_database();
+
+function test_read_envs() {
+	let api_key = process.env.API_KEY
+	console.log(api_key);
+}
+
+//test_init_database();
+test_read_envs();
