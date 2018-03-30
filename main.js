@@ -79,7 +79,7 @@ Key is TWVLTZ-K5FK6-SFOLL7
 
 
 
-let main = function(pair) {
+let main = async function(pair) {
     log("Starting Trade PnL...");
     
     // connect to the db
