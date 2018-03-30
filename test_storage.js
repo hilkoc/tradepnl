@@ -4,10 +4,10 @@
 
 //let tradestorage = require('./storage');
 
-function test_init_database() {
-    let storage = require('./storage').makeStorage();
+async function test_init_database() {
+    let storage = require('./storage').makeStorage('test_trades.db');
     
-    let trade = { ordertxid: 'OGY2WA-UQ46X-RXO3N3',
+    let trade = { ordertxid: 'OGY2WA-UQ46X-RXO3N4',
               postxid: 'TKH2SE-M7IF5-CFI7LT',
               pair: 'XETHZUSD',
               time: 1522320522.7156,
@@ -21,10 +21,13 @@ function test_init_database() {
               misc: '' }
 
     
-    storage.save_trade(trade);
+    let rowID = await storage.save_trade(trade);
+    
+    let position = {  trade_id: rowID, position: 2, average_open: 300, cash_pnl: 1.2907 };
+    rowID = await storage.save_position(position);
     
     let trades = storage.retrieve_positions();
-    console.log(trades);
+    //console.log(trades);
     storage.close();
 }
 
@@ -43,6 +46,6 @@ function test_read_envs() {
     console.log(api_key);
 }
 
-//test_init_database();
+test_init_database();
 //test_read_envs();
-test_get_last_trade();
+//test_get_last_trade();

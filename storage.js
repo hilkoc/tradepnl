@@ -1,16 +1,17 @@
 'use strict';
 
-/** Class for saving and retrieving trades.
- *  This implementation uses sqlite database.
+/**
+ * Class for saving and retrieving trades. This implementation uses sqlite
+ * database.
  */
 
-let sqlite3 = require('sqlite3');
+let sqlite3 = require('sqlite3').verbose();
 
 let DB_FILE = 'trades.db'; // Default location
 
 
 // queries
-let CREATE_TABLE_TRADES = "CREATE TABLE IF NOT EXISTS trades ( \
+const CREATE_TABLE_TRADES = "CREATE TABLE IF NOT EXISTS trades ( \
         id INTEGER PRIMARY KEY AUTOINCREMENT, \
         ext_id TEXT UNIQUE, \
         pair TEXT, \
@@ -20,11 +21,21 @@ let CREATE_TABLE_TRADES = "CREATE TABLE IF NOT EXISTS trades ( \
         volume REAL, \
         fee REAL) ;";
 
-let CREATE_TABLE_POSITIONS = "CREATE TABLE IF NOT EXISTS positions";
-let SAVE_TRADE = "INSERT INTO trades (ext_id, pair, time, type, price, volume, fee) VALUES (?, ?, ?, ?, ?, ?, ?) ;";
-let SAVE_POSITION = "";
-let GET_POSITION = "SELECT * FROM trades ;";
-let GET_LAST_TRADE = "SELECT * FROM trades WHERE id = (SELECT MAX(id) FROM trades);";
+const CREATE_TABLE_POSITIONS = "CREATE TABLE IF NOT EXISTS positions ( \
+	trade_id INTEGER PRIMARY KEY REFERENCES trades (id) ON DELETE CASCADE, \
+	position REAL, \
+	average_open REAL, \
+	cash_pnl REAL) ;";
+;
+
+const CREATE_VIEW_POSITIONS = "CREATE VIEW IF NOT EXISTS view_positions as  \
+    	SELECT id, time, pair, price, type, volume, position, average_open, cash_pnl, fee \
+	FROM trades INNER JOIN positions ON trades.id = positions.trade_id ;";
+
+const SAVE_TRADE = "INSERT INTO trades (ext_id, pair, time, type, price, volume, fee) VALUES (?, ?, ?, ?, ?, ?, ?) ;";
+const SAVE_POSITION = "INSERT INTO positions (trade_id, position, average_open, cash_pnl) VALUES (?, ?, ?, ?) ;";
+const GET_POSITION = "SELECT * FROM view_positions ;";
+const GET_LAST_TRADE = "SELECT * FROM trades WHERE id = (SELECT MAX(id) FROM trades);";
 
 class Storage {
     /** Manages the connection with the database */
@@ -41,12 +52,25 @@ class Storage {
     
     /** Create tables and initialize the database. */
     init() {
-        this.db.run(CREATE_TABLE_TRADES, (err) => {
-            if (err) {
-                return console.error(err.message);
-            }
-        });
-        //this.db.run(CREATE_TABLE_POSITIONS);
+	this.db.serialize(() => {
+            this.db.run(CREATE_TABLE_TRADES, (err) => {
+                if (err) {
+                    return console.error(err.message);
+                }
+            })
+            .run(CREATE_TABLE_POSITIONS, (err) => {
+                if (err) {
+                    return console.error(err.message);
+                }
+                console.log('Created table positions..');
+            })
+            .run(CREATE_VIEW_POSITIONS, (err) => {
+                if (err) {
+                    return console.error(err.message);
+                }
+                console.log('Created view...');
+            });
+	});
     }
     
     close() {
@@ -73,7 +97,16 @@ class Storage {
     }
     
     save_position(position) {
-        
+	return new Promise((resolve, reject) => {
+	    console.log("saving position " + position);
+	    this.db.run(SAVE_POSITION, [position.trade_id, position.position, position.average_open, position.cash_pnl], function(err) {
+            if (err) {
+        	console.log(err.message);
+        	reject(err);
+            }
+            	resolve(this.lastID);
+            });
+	});
     }
     
     retrieve_positions() {
@@ -81,8 +114,8 @@ class Storage {
             if (err) {
                 throw err;
             }
-            //console.log(`A row has been inserted with rowid ${this.lastID}`);
-            console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price} ${row.volume} ${row.fee}`);
+            console.log(row);
+            //console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price} ${row.volume} ${row.fee}`);
         });
     }
     
@@ -106,7 +139,8 @@ class Storage {
     
 }
 
-module.exports.makeStorage = function () {
-    let storage = new Storage(DB_FILE);
+module.exports.makeStorage = function (db_file) {
+    if (!db_file) { db_file = DB_FILE;}
+    let storage = new Storage(db_file);
     return storage;
 }
