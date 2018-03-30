@@ -119,9 +119,9 @@ let main = async function(pair) {
 //    get_rate(pair);
 //    get_balance();
     
-	let trades = storage.retrieve_positions();
-	console.log(trades);
-	storage.close();
+    let trades = storage.retrieve_positions();
+    console.log(trades);
+    storage.close();
 }
 
 
