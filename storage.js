@@ -24,6 +24,7 @@ let CREATE_TABLE_POSITIONS = "CREATE TABLE IF NOT EXISTS positions";
 let SAVE_TRADE = "INSERT INTO trades (ext_id, pair, time, type, price, volume, fee) VALUES (?, ?, ?, ?, ?, ?, ?) ;";
 let SAVE_POSITION = "";
 let GET_POSITION = "SELECT * FROM trades ;";
+let GET_LAST_TRADE = "SELECT * FROM trades WHERE id = (SELECT MAX(id) FROM trades);";
 
 class Storage {
     /** Manages the connection with the database */
@@ -80,6 +81,17 @@ class Storage {
             }
             //console.log(`A row has been inserted with rowid ${this.lastID}`);
             console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price} ${row.volume} ${row.fee}`);
+        });
+    }
+    
+    get_last_trade() {
+        this.db.get(GET_LAST_TRADE, [], (err, row) => {
+            if (err) {
+                throw err;
+            }
+            console.log("Last Trade is:");
+            console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price} ${row.volume} ${row.fee}`);
+            return row;
         });
     }
     

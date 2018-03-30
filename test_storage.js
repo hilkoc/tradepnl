@@ -28,6 +28,15 @@ function test_init_database() {
     storage.close();
 }
 
+function test_get_last_trade() {
+    let storage = require('./storage').makeStorage();
+    
+    let trade = storage.get_last_trade();
+    
+    console.log(trade);
+    storage.close();
+}
+
 
 function test_read_envs() {
     let api_key = process.env.API_KEY
@@ -35,4 +44,5 @@ function test_read_envs() {
 }
 
 //test_init_database();
-test_read_envs();
+//test_read_envs();
+test_get_last_trade();
