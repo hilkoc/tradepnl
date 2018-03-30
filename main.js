@@ -55,9 +55,10 @@ async function get_rate(ccypair) {
 }
 
 
+/** Since can be a timestamp or a tx_id. */
 async function get_trades(since) {
     try {
-        let history = await kraken.api('TradesHistory', { type : 'no position', start : 'T3KZB7-DGV5O-BJGN4C' } ); //'TJFQJU-2P7FB-EKRZ73'
+        let history = await kraken.api('TradesHistory', { type: 'no position', start: since } ); //'TJFQJU-2P7FB-EKRZ73' // 'T3KZB7-DGV5O-BJGN4C'
         let trades = history.result.trades
         return trades;
     } catch(e) {
@@ -89,22 +90,35 @@ Key is TWVLTZ-K5FK6-SFOLL7
 let main = async function(pair) {
     log("Starting Trade PnL...");
     
-    // connect to the db
-    // TODO find the most recent trade
-
-    // fetch all trades since the last trade from the exchange
-    let new_trades = await get_trades(0);
-    log("Fetched trades:\n");
-    log(new_trades);
-    log(new_trades.length);
-    // sort the trades, oldest first
-    // TODO
+    // find the most recent trade
+    let last_trade = await storage.get_last_trade();
+    log("Last trade");
+    log(last_trade);
     
-    // store the new trades in the database
+    // fetch all trades since the last trade from the exchange
+    let new_trades = await get_trades(last_trade ? last_trade.ext_id : 'T3KZB7-DGV5O-BJGN4C'); // change to 'null' later
+    log("Fetched trades:\n");
+    
+    // sort the trades, oldest first
+    let sorted_trades = [];
     for (const [tx_id, trade] of Object.entries(new_trades)) {
         trade.ext_id = tx_id;
         log(trade);
-        storage.save_trade(trade);
+        sorted_trades.unshift(trade); // Add at beginning to reverse the order.
+    }
+    
+    // store the new trades in the database, while checking that they are sorted
+    let index, trade, prev_trade;
+    for (index = 0; index < trades.length; index++) {
+	prev_trade = trade;
+	trade = trades[index];
+	
+	if (prev_trade && trade.time < prev_trade.time) {
+	    console.error(`trade time: ${trade.time}  is before prev_trade time ${prev_trade.time}`);
+	    throw "Trades are not in order!"
+	}
+	log(trade);    
+	storage.save_trade(trade);
     }
     log("Saved all trades\n");
     // calculate position and pnl for the new trades

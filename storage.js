@@ -61,7 +61,7 @@ class Storage {
     
     save_trade(trade) {
         console.log("saving trade " + trade);
-        this.db.run(SAVE_TRADE, [trade.ext_id, trade.pair, trade.time, trade.type, trade.price, trade.volume, trade.fee], function(err) {
+        this.db.run(SAVE_TRADE, [trade.ext_id, trade.pair, trade.time, trade.type, trade.price, trade.vol, trade.fee], function(err) {
             if (err) {
               return console.log(err.message);
             }
@@ -85,14 +85,21 @@ class Storage {
     }
     
     get_last_trade() {
-        this.db.get(GET_LAST_TRADE, [], (err, row) => {
-            if (err) {
-                throw err;
-            }
-            console.log("Last Trade is:");
-            console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price} ${row.volume} ${row.fee}`);
-            return row;
-        });
+	return new Promise((resolve, reject) => {
+	    this.db.get(GET_LAST_TRADE, [], (err, row) => {
+		if (err) {
+		    reject(err);
+		}
+		if (row) {
+		    console.log("Last Trade is:");
+		    console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price} ${row.volume} ${row.fee}`);
+		    resolve(row);
+		} else {
+		    console.log("No trades found!");
+		    resolve(null);
+		}
+	    });
+	});
     }
     
 }
