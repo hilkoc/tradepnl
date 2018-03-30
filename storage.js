@@ -44,9 +44,9 @@ const GET_LAST_POSITION = "SELECT * FROM positions WHERE trade_id = \
     	(SELECT max(id) FROM trades INNER JOIN positions ON id = trade_id GROUP BY pair HAVING pair = ? );";
 
 const zero_position = { trade_id: null,
-	position: 0,
+	position: 0.0,
 	average_open: 99.99,
-	cash_pnl: 0};
+	cash_pnl: 0.0};
 
 class Storage {
     /** Manages the connection with the database */
@@ -139,6 +139,9 @@ class Storage {
 		}
 		if (row) {
 		    console.log("Last Trade is:");
+		    row.price = parseFloat(row.price);
+		    row.volume = parseFloat(row.volume);
+		    row.fee = parseFloat(row.fee);
 		    console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price.toFixed(2)} ${row.volume.toFixed(2)} ${row.fee.toFixed(2)}`);
 		    resolve(row);
 		} else {
@@ -161,7 +164,10 @@ class Storage {
 		    reject(err);
 		}
 		if (row) {
-		    console.log(`Last Position ${row.trade_id} p: ${row.position.toFixed(2)} ao: ${row.average_open.toFixed(2)} c: ${row.cash_pnl.toFixed(2)}`);
+		    row.position = parseFloat(row.position);
+		    row.average_open = parseFloat(row.average_open);
+		    row.cash_pnl = parseFloat(row.cash_pnl);
+		    console.log(`Last Position ${row.trade_id} p: ${row.position} ao: ${row.average_open} c: ${row.cash_pnl}`);
 		    resolve(row);
 		} else {
 		    console.log("No previous position found!");

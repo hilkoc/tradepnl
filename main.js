@@ -94,20 +94,23 @@ Key is TWVLTZ-K5FK6-SFOLL7
 /** See https://github.com/askmike/gekko/issues/2028 */
 function calculatePosition(trade, prev_position) {
     let trade_volume = trade.vol;
+    let prev_volume = prev_position.position;
+    log(`prev vol ${prev_volume} ,  trade vol ${trade_volume}`);
+    log(`type of prev vol ${typeof prev_volume} ,  type of trade vol ${typeof trade_volume}`);
     let new_position, avg_open, cpnl;
     if (trade.type == 'buy') {
-	new_position = prev_position.position + trade_volume;
+	new_position = prev_volume + trade_volume;
 	
-	let prev_volume = prev_position.posiiton;
+	log(`prev_position ${typeof prev_position.average_open} ,  trade.price ${typeof trade.price}`);
 	avg_open = (prev_volume * prev_position.average_open + trade_volume * trade.price) / (prev_volume + trade_volume);
 	cpnl = 0;
     } else {
 	// Sell trade
-	new_position = prev_position.position - trade_volume;
+	new_position = prev_volume - trade_volume;
 	avg_open = prev_position.average_open;
-	cpnl = trade.volume * (trade.price - avg_open);
+	cpnl = trade_volume * (trade.price - avg_open);
     }
-    
+    log(`avg open is ${avg_open}  c ${cpnl}`);
     let position = {  trade_id: null, // set after function returns
 	    position: new_position,
 	    average_open: avg_open,
@@ -131,6 +134,9 @@ let main = async function(pair) {
     let sorted_trades = [];
     for (const [tx_id, trade] of Object.entries(new_trades)) {
         trade.ext_id = tx_id;
+        trade.vol = parseFloat(trade.vol);
+        trade.price = parseFloat(trade.price);
+        trade.fee = parseFloat(trade.fee);
         // log(trade);
         sorted_trades.unshift(trade); // Add at beginning to reverse the order.
     }
@@ -147,7 +153,8 @@ let main = async function(pair) {
 	    throw "Trades are not in order!"
 	}
 	
-	log(trade.type + ' ' + trade.price);
+	//log(trade.type + ' ' + trade.vol.toFixed(2) + '  at ' + trade.price.toFixed(2));
+	log(trade.type + ' ' + trade.vol + '  at ' + trade.price);
 	let lastID = await storage.save_trade(trade);
 	log(`Trade inserted with rowid ${lastID}`);
 	
