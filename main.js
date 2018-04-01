@@ -2,8 +2,10 @@
 
 'use strict';
 
-// cmd line interface for trade pnl app
-let storage = require('./storage').makeStorage();
+// This module is the command line interface for trade pnl app
+
+const storage = require('./storage').makeStorage();
+const exchange = require('./exchange').makeExchange();
 
 let path = require('path');
 let pkg = require( path.join(__dirname, 'package.json') );
@@ -12,7 +14,7 @@ const parser = require('commander');
 
 parser
     .version(pkg.verion)
-    .option('--pair <pair>', 'Currency pair to calculate PnL for')
+    .option('--sync <sync>', 'If enabled, fetch new trades from the excange and save them in the database.')
     .parse(process.argv);
 
 
@@ -20,88 +22,16 @@ let log = function(msg) {
   console.log(msg);
 }
 
-// KRAKEN stuff, to move into separate module
-let async_module = require('async');
-
-/*
- * Before starting, run:  source api_keys.sh
- * where api_keys.sh is a file containing;
- * * export API_KEY=my_exchange_api_key
- * * export API_SECRET=my_exchange_api_private_key
- */
-const key          = process.env.API_KEY; 
-const secret       = process.env.API_SECRET; 
-const KrakenClient = require('kraken-api');
-const kraken       = new KrakenClient(key, secret);
- 
-async function get_balance() {
-    // Display user's balance 
-    try { 
-        log(await kraken.api('Balance'));
-    } catch(e) {
-        log(e);
-    }
-}
-
-
-
-// BTCUSD is  'XXBTZUSD'
-async function get_rate(ccypair) {
-    try { 
-        log(await kraken.api('Ticker', { pair : ccypair } ) );
-    } catch(e) {
-        log(e);
-    }
-}
-
-
-/** Since can be a timestamp or a tx_id. */
-async function get_trades(since) {
-    let params =  { type: 'no position'}
-    if (since) {
-	params.start = since;
-    }
-    try {
-        let history = await kraken.api('TradesHistory', params ); //'TJFQJU-2P7FB-EKRZ73' // 'T3KZB7-DGV5O-BJGN4C'
-        let trades = history.result.trades
-        return trades;
-    } catch(e) {
-        log("Error in get trades");
-        log(e);
-        return [];
-    }
-}
-
-/* A trade looks like this
-Key is TWVLTZ-K5FK6-SFOLL7
-{ ordertxid: 'O3XL4L-X6BAK-CBJ6UU',
-  postxid: 'TKH2SE-M7IF5-CFI7LT',
-  pair: 'XETHZUSD',
-  time: 1522164390.1206,
-  type: 'sell',
-  ordertype: 'limit',
-  price: '468.95000',
-  cost: '569.60307',
-  fee: '0.91136',
-  vol: '1.21463497',
-  margin: '0.00000',
-  misc: '' }
-
-
-*/
 
 
 /** See https://github.com/askmike/gekko/issues/2028 */
 function calculatePosition(trade, prev_position) {
     let trade_volume = trade.vol;
     let prev_volume = prev_position.position;
-    log(`prev vol ${prev_volume} ,  trade vol ${trade_volume}`);
-    log(`type of prev vol ${typeof prev_volume} ,  type of trade vol ${typeof trade_volume}`);
     let new_position, avg_open, cpnl;
     if (trade.type == 'buy') {
 	new_position = prev_volume + trade_volume;
 	
-	log(`prev_position ${typeof prev_position.average_open} ,  trade.price ${typeof trade.price}`);
 	avg_open = (prev_volume * prev_position.average_open + trade_volume * trade.price) / (prev_volume + trade_volume);
 	cpnl = 0;
     } else {
@@ -110,7 +40,7 @@ function calculatePosition(trade, prev_position) {
 	avg_open = prev_position.average_open;
 	cpnl = trade_volume * (trade.price - avg_open);
     }
-    log(`avg open is ${avg_open}  c ${cpnl}`);
+
     let position = {  trade_id: null, // set after function returns
 	    position: new_position,
 	    average_open: avg_open,
@@ -119,30 +49,27 @@ function calculatePosition(trade, prev_position) {
 }
 
 
-let main = async function(pair) {
-    log("Starting Trade PnL...");
-    
+async function fetch_new_trades() {
     // find the most recent trade
     let last_trade = await storage.get_last_trade();
     log("Last trade");
     log(last_trade);
     
-    // fetch all trades since the last trade from the exchange
-    let new_trades = await get_trades(last_trade ? last_trade.ext_id : 'T3KZB7-DGV5O-BJGN4C'); //TODO change to 'null' later
+    // Fetch all trades since the last trade from the exchange
+    let new_trades = await exchange.get_trades(last_trade ? last_trade.ext_id : null);
     
-    // sort the trades, oldest first
+    // Sort the trades, oldest first. Important: Also convert strings to floats. 
     let sorted_trades = [];
     for (const [tx_id, trade] of Object.entries(new_trades)) {
         trade.ext_id = tx_id;
         trade.vol = parseFloat(trade.vol);
         trade.price = parseFloat(trade.price);
         trade.fee = parseFloat(trade.fee);
-        // log(trade);
         sorted_trades.unshift(trade); // Add at beginning to reverse the order.
     }
     
-    log("Fetched " + sorted_trades.length + " trades.");
-    // store the new trades in the database, while checking that they are sorted
+    const nr_new_trades = sorted_trades.length;
+    // Store the new trades in the database, while checking that they are sorted
     let index, trade, prev_trade;
     for (index = 0; index < sorted_trades.length; index++) {
 	prev_trade = trade;
@@ -153,42 +80,50 @@ let main = async function(pair) {
 	    throw "Trades are not in order!"
 	}
 	
-	//log(trade.type + ' ' + trade.vol.toFixed(2) + '  at ' + trade.price.toFixed(2));
 	log(trade.type + ' ' + trade.vol + '  at ' + trade.price);
 	let lastID = await storage.save_trade(trade);
-	log(`Trade inserted with rowid ${lastID}`);
 	
-	// calculate position and pnl for the new trades
-	// store those in the db
+	// Calculate position and pnl for the new trades
+	// Store those in the db
 	let prev_position = await storage.get_last_position(trade.pair);
 	let position = calculatePosition(trade, prev_position);
 	position.trade_id = lastID;
-	log('Saving position');
-	log(position);
 	
 	let position_id = await storage.save_position(position);
 	log(position_id + '\n');
-	//console.log(`Position inserted with rowid ${position_id}`);
     }
     log("Saved all trades.\n");
-    
+    return nr_new_trades;
+}
 
-    // output results. PnL for all new trades
-    // if no new trades, then show the last 5.
-    //
-    // Fetch live spot and show live PnL
 
-//    log("pair is " + pair);
-//    get_rate(pair);
-//    get_balance();
-    
+function show_pnl(nr_rows) {
+    log("Showing PnL for the last " + nr_rows + " trades.");
     let positions = storage.retrieve_positions();
-    //console.log(trades);
+}
+
+
+let main = async function(sync_new_trades) {
+    log("Starting Trade PnL...");
+    
+    let nr_rows = 5;
+    if (sync_new_trades) {
+	let nr_new_trades = await fetch_new_trades();
+	log("Fetched " + nr_new_trades + " trades.");
+	// If no new trades, then show pnl for the last 5.
+	nr_rows = Math.max(nr_new_trades, nr_rows);
+    }
+
+    show_pnl(nr_rows);
+
+    // Fetch live spot and show live PnL
+    // TODO collect distinct pairs among new trades. Retrieve positions per pair. Show Total live PnL per pair.
+
     storage.close();
 }
 
 
-main(parser.pair);
+main(parser.sync);
 //if ( typeof parser.pair !== 'undefined' && parser.pair ) {
 //    main(parser.pair);
 //} else { // if program was called with no arguments, show help.

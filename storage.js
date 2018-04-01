@@ -1,8 +1,7 @@
 'use strict';
 
 /**
- * Class for saving and retrieving trades. This implementation uses sqlite
- * database.
+ * Class for saving and retrieving trades. This implementation uses sqlite database.
  */
 
 let sqlite3 = require('sqlite3').verbose();
