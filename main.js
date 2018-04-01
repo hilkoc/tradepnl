@@ -30,21 +30,21 @@ function calculatePosition(trade, prev_position) {
     let prev_volume = prev_position.position;
     let new_position, avg_open, cpnl;
     if (trade.type == 'buy') {
-	new_position = prev_volume + trade_volume;
-	
-	avg_open = (prev_volume * prev_position.average_open + trade_volume * trade.price) / (prev_volume + trade_volume);
-	cpnl = 0;
+    new_position = prev_volume + trade_volume;
+    
+    avg_open = (prev_volume * prev_position.average_open + trade_volume * trade.price) / (prev_volume + trade_volume);
+    cpnl = 0;
     } else {
-	// Sell trade
-	new_position = prev_volume - trade_volume;
-	avg_open = prev_position.average_open;
-	cpnl = trade_volume * (trade.price - avg_open);
+    // Sell trade
+    new_position = prev_volume - trade_volume;
+    avg_open = prev_position.average_open;
+    cpnl = trade_volume * (trade.price - avg_open);
     }
 
     let position = {  trade_id: null, // set after function returns
-	    position: new_position,
-	    average_open: avg_open,
-	    cash_pnl: cpnl };
+        position: new_position,
+        average_open: avg_open,
+        cash_pnl: cpnl };
     return position;
 }
 
@@ -72,34 +72,56 @@ async function fetch_new_trades() {
     // Store the new trades in the database, while checking that they are sorted
     let index, trade, prev_trade;
     for (index = 0; index < sorted_trades.length; index++) {
-	prev_trade = trade;
-	trade = sorted_trades[index];
-	
-	if (prev_trade && trade.time < prev_trade.time) {
-	    console.error(`trade time: ${trade.time}  is before prev_trade time ${prev_trade.time}`);
-	    throw "Trades are not in order!"
-	}
-	
-	log(trade.type + ' ' + trade.vol + '  at ' + trade.price);
-	let lastID = await storage.save_trade(trade);
-	
-	// Calculate position and pnl for the new trades
-	// Store those in the db
-	let prev_position = await storage.get_last_position(trade.pair);
-	let position = calculatePosition(trade, prev_position);
-	position.trade_id = lastID;
-	
-	let position_id = await storage.save_position(position);
-	log(position_id + '\n');
+    prev_trade = trade;
+    trade = sorted_trades[index];
+    
+    if (prev_trade && trade.time < prev_trade.time) {
+        console.error(`trade time: ${trade.time}  is before prev_trade time ${prev_trade.time}`);
+        throw "Trades are not in order!"
+    }
+    
+    log(trade.type + ' ' + trade.vol + '  at ' + trade.price);
+    let lastID = await storage.save_trade(trade);
+    
+    // Calculate position and pnl for the new trades
+    // Store those in the db
+    let prev_position = await storage.get_last_position(trade.pair);
+    let position = calculatePosition(trade, prev_position);
+    position.trade_id = lastID;
+    
+    let position_id = await storage.save_position(position);
+    log(position_id + '\n');
     }
     log("Saved all trades.\n");
     return nr_new_trades;
 }
 
 
-function show_pnl(nr_rows) {
+async function show_trade_pnl(nr_rows) {
     log("Showing PnL for the last " + nr_rows + " trades.");
-    let positions = storage.retrieve_positions();
+    
+    const row_callback = function (err, row) {
+        // id, time, pair, price, type, volume, position, average_open, cash_pnl, fee
+        if (row) {
+            log(`${row.id} ${row.time} ${row.pair} | ${row.price.toFixed(2)}  ${row.type} ${row.volume.toFixed(2)} |\
+            p: ${row.position.toFixed(2)} ao: ${row.average_open.toFixed(2)}  c: ${row.cash_pnl.toFixed(2)} fee: ${row.fee.toFixed(2)}`)
+        }
+    }
+    await storage.retrieve_positions(nr_rows, row_callback);
+}
+
+
+async function show_live_pnl(nr_rows) {
+    log("Showing live PnL");
+    
+    let rows = await storage.get_all_positions();
+    log(rows);
+    log(typeof rows);
+    function get_live_pnl(row) {
+    log(row);
+    }
+
+    rows.forEach(get_live_pnl);
 }
 
 
@@ -108,17 +130,14 @@ let main = async function(sync_new_trades) {
     
     let nr_rows = 5;
     if (sync_new_trades) {
-	let nr_new_trades = await fetch_new_trades();
-	log("Fetched " + nr_new_trades + " trades.");
-	// If no new trades, then show pnl for the last 5.
-	nr_rows = Math.max(nr_new_trades, nr_rows);
+        let nr_new_trades = await fetch_new_trades();
+        log("Fetched " + nr_new_trades + " trades.");
+        // If no new trades, then show pnl for the last 5.
+        nr_rows = Math.max(nr_new_trades, nr_rows);
     }
 
-    show_pnl(nr_rows);
-
-    // Fetch live spot and show live PnL
-    // TODO collect distinct pairs among new trades. Retrieve positions per pair. Show Total live PnL per pair.
-
+    await show_trade_pnl(nr_rows);
+    await show_live_pnl(nr_rows);
     storage.close();
 }
 
