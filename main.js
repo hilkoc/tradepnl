@@ -57,7 +57,7 @@ async function fetch_new_trades() {
     
     // Fetch all trades since the last trade from the exchange
     let new_trades = await exchange.get_trades(last_trade ? last_trade.ext_id : null);
-    
+    log(new_trades);
     // Sort the trades, oldest first. Important: Also convert strings to floats. 
     let sorted_trades = [];
     for (const [tx_id, trade] of Object.entries(new_trades)) {
@@ -112,13 +112,20 @@ async function show_trade_pnl(nr_rows) {
 
 
 async function show_live_pnl(nr_rows) {
-    log("Showing live PnL");
+    log("\n==========\n==Live PnL\n==========\n");
     
     let rows = await storage.get_all_positions();
-    log(rows);
-    log(typeof rows);
-    function get_live_pnl(row) {
-    log(row);
+
+    
+    async function get_live_pnl(row) {
+        let price = await exchange.get_rate(row.pair);
+        let ao = row.average_open;
+        let cash_pnl = row.position *(price - ao);
+        let rel_pnl = (price / ao -1) * 100;
+        let term = row.pair.substring(5);
+        let msg = row.pair + " p: " + row.position.toFixed(2) + " ao: " + ao.toFixed(2) + " price: " + price.toFixed(2) +
+            " PnL (" + term + "): " + cash_pnl.toFixed(2) + " PnL rel: " + rel_pnl.toFixed(2) + " %";         
+        log(msg);
     }
 
     rows.forEach(get_live_pnl);

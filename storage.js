@@ -6,7 +6,7 @@
 
 let sqlite3 = require('sqlite3').verbose(); // Add .verbose(); for debugging
 
-let DB_FILE = 'test_trades.db'; // Default location
+let DB_FILE = 'trades.db'; // Default location
 
 
 // queries

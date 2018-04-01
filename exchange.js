@@ -15,9 +15,8 @@ class Exchange {
     }
 
     on_error(err) {
-    if (err) {
+        if (err) {
             console.error(err.message);
-            throw err;
         }
     }
     
@@ -51,7 +50,7 @@ class Exchange {
                     console.error(err);
                     resolve([]); // Return an empty list
                     return;
-            }
+                }
                 let trades = result.result.trades;
                 resolve(trades);
             });
@@ -64,26 +63,26 @@ class Exchange {
      * @param ccypair the currency pair to retrieve the spot rate for.
      * @return Returns the last traded price for the given pair.
      */
-   get_rate(ccypair) {
-    return new Promise( (resolve, reject) => {
-        try {
-        this.kraken.api('Ticker', { pair : ccypair } , function callback(err, results) {
+    get_rate(ccypair) {
+        return new Promise( (resolve, reject) => {
+            try {
+                this.kraken.api('Ticker', { pair : ccypair } , function callback(err, results) {
 
-            if (err) {
-            this.on_error(err);
-            reject(err);
+                    if (err) {
+                        console.error(err.message);
+                        reject(err);
+                    }
+                    const ticker = results.result[ccypair];
+                    const last_trade_arr = ticker.c;
+                    resolve( parseFloat(last_trade_arr[0]) );
+                } );
+            } catch(e) {
+                console.log("Error in get_rate for pair " + ccypair);
+                this.on_error(e);
+                reject(e);
             }
-            const ticker = results.result[ccypair];
-            const last_trade_arr = ticker.c;
-            resolve( last_trade_arr[0] );
-        } );
-        } catch(e) {
-        console.log("Error in get_rate for pair " + ccypair);
-        this.on_error(e);
-        reject(e);
-        }
-    });
-    }    
+        });
+    }
 }
 
 module.exports.makeExchange = function () {
