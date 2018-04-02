@@ -45,7 +45,7 @@ const GET_ALL_LAST_POSITIONS = "SELECT view_positions.pair as pair, position, av
 
 const zero_position = { trade_id: null,
     position: 0.0,
-    average_open: 99.99,
+    average_open: null,
     cash_pnl: 0.0};
 
 class Storage {

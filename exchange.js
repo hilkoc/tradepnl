@@ -41,9 +41,13 @@ class Exchange {
      * */
     get_trades(since) {
         let params =  { type: 'no position'}; // Only fetch trades that are not margin trades.
-        if (since || since === 0) {
+        if (since || since === -1) {
             params.start = since;
             console.log("    fetching trades since: " + since);
+            if (since === -1) {
+                params.start = 0;
+                params.ofs = 1000;
+            }
         }
         return new Promise( (resolve, reject) => {
             this.kraken.api('TradesHistory', params, function callback(err, result) {

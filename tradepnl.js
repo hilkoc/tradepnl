@@ -26,7 +26,7 @@ class App {
         } else {
         // Sell trade
         new_position = prev_volume - trade_volume;
-        avg_open = prev_position.average_open;
+        avg_open = prev_position.average_open || trade.price;
         cpnl = trade_volume * (trade.price - avg_open);
         }
 
@@ -43,7 +43,7 @@ class App {
         let last_trade = await this.storage.get_last_trade();
         
         // Fetch all trades since the last trade from the exchange
-        let new_trades = await this.exchange.get_trades(last_trade ? last_trade.ext_id : 0);
+        let new_trades = await this.exchange.get_trades(last_trade ? last_trade.ext_id : -1);
         // Sort the trades, oldest first. Important: Also convert strings to
         // floats.
         let sorted_trades = [];
