@@ -39,16 +39,16 @@ class Exchange {
      * Trade_ids in Kraken are referred to as tx_id, in this app as ext_id.
      * The values of the map are Trade objects. The map is ordered chronologically, most recent trade first.
      * */
-    get_trades(since) {
-        let params =  { type: 'no position'}; // Only fetch trades that are not margin trades.
-        if (since || since === -1) {
+    get_trades(since, offset) {
+        let params = {type: 'no position'}; // Only fetch trades that are not margin trades.
+        if (since || since === 0) {
             params.start = since;
-            console.log("    fetching trades since: " + since);
-            if (since === -1) {
-                params.start = 0;
-                params.ofs = 1000;
-            }
         }
+        if (offset) {
+            params.ofs = offset;
+        }
+        console.log(params);
+        
         return new Promise( (resolve, reject) => {
             this.kraken.api('TradesHistory', params, function callback(err, result) {
                 if (err) {

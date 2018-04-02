@@ -37,49 +37,61 @@ class App {
         return position;
     }
 
-
+    
+    for_each_entry(map, callback) {
+        let total = 0;
+        for (const [key, value] of Object.entries(map)) {
+            callback(key, value);
+            total += 1;
+        }
+        return total;
+    }    
+    
     async fetch_new_trades() {
         // find the most recent trade
         let last_trade = await this.storage.get_last_trade();
-        
+        let all_trades = [];
+        const since = last_trade ? last_trade.ext_id : 0;
+        const BATCH_SIZE = 50;
+        let ofs = 0;
+        let has_more = true;
         // Fetch all trades since the last trade from the exchange
-        let new_trades = await this.exchange.get_trades(last_trade ? last_trade.ext_id : -1);
-        // Sort the trades, oldest first. Important: Also convert strings to
-        // floats.
-        let sorted_trades = [];
-        for (const [tx_id, trade] of Object.entries(new_trades)) {
-            trade.ext_id = tx_id;
-            trade.vol = parseFloat(trade.vol);
-            trade.price = parseFloat(trade.price);
-            trade.fee = parseFloat(trade.fee);
-            sorted_trades.unshift(trade); // Add at beginning to reverse the order.
+        while (has_more) {
+            let trades = await this.exchange.get_trades(since, ofs);
+            let count = this.for_each_entry(trades, function callback (tx_id, trade) {
+                trade.ext_id = tx_id;
+                trade.vol = parseFloat(trade.vol);
+                trade.price = parseFloat(trade.price);
+                trade.fee = parseFloat(trade.fee);
+                all_trades.unshift(trade); // Add at beginning to reverse the order.  
+            });
+            console.log("count: " + count);
+            
+            ofs += BATCH_SIZE;
+            has_more = (count > 0);
         }
         
-        const nr_new_trades = sorted_trades.length;
-        // Store the new trades in the database, while checking that they are
-        // sorted
+        const nr_new_trades = all_trades.length;
+        // Store the new trades in the database, while checking that they are sorted
         let index, trade, prev_trade;
-        for (index = 0; index < sorted_trades.length; index++) {
-        prev_trade = trade;
-        trade = sorted_trades[index];
-        
-        if (prev_trade && trade.time < prev_trade.time) {
-            console.error(`trade time: ${trade.time}  is before prev_trade time ${prev_trade.time}`);
-            throw "Trades are not in order!"
+        for (index = 0; index < all_trades.length; index++) {
+            prev_trade = trade;
+            trade = all_trades[index];
+            
+            if (prev_trade && trade.time < prev_trade.time) {
+                console.error(`trade time: ${trade.time}  is before prev_trade time ${prev_trade.time}`);
+                throw "Trades are not in order!";
+            }
+            
+            let lastID = await this.storage.save_trade(trade);
+            
+            // Calculate position and pnl for the new trades and store those
+            let prev_position = await this.storage.get_last_position(trade.pair);
+            let position = this.calculatePosition(trade, prev_position);
+            position.trade_id = lastID;
+            
+            let position_id = await this.storage.save_position(position);
         }
-        
-        //log(trade.type + ' ' + trade.vol + '  at ' + trade.price);
-        let lastID = await this.storage.save_trade(trade);
-        
-        // Calculate position and pnl for the new trades
-        // Store those in the db
-        let prev_position = await this.storage.get_last_position(trade.pair);
-        let position = this.calculatePosition(trade, prev_position);
-        position.trade_id = lastID;
-        
-        let position_id = await this.storage.save_position(position);
-        }
-        //log("Saved all trades.\n");
         return nr_new_trades;
     }
 
