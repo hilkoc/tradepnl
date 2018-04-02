@@ -26,17 +26,59 @@ let log = function(msg) {
 }
 
 
+/** For pretty printing */
+class Table {
+    
+    constructor(headers) {
+        this.MIN_COL_WIDTH = 6;
+        this.SEP = " ";
+        this.headers = headers;
+        this.hl = [];
+        for (let i = 0; i < headers.length; i++) {
+            // pad headers to min width
+            let h = headers[i];
+            h = h.padEnd(this.MIN_COL_WIDTH);
+            this.headers[i] = h;
+            this.hl[i] = h.length;
+        }
+    }
+    
+    header_row_str() {
+        let s = "";
+        for (let i = 0; i < this.headers.length; i++) {
+            s += this.headers[i] + this.SEP;
+        }
+        return s;
+    }
+    
+    
+    // Assume row values are in the same order as the headrs.
+    row_to_str(r) {
+        let s = "";
+        for (let i = 0; i < this.headers.length; i++) {
+            let v = r[i];
+            if (typeof v == 'number') {
+                v = v.toFixed(2);
+            }
+            s += v.padStart(this.hl[i]) + this.SEP;
+        }
+        return s;
+    }
+}
 
 
 
 async function show_trade_pnl(nr_rows) {
-    log("Showing PnL for the last " + nr_rows + " trades.");
+    log("Showing PnL for the last " + nr_rows + " trades.\n");
+    
+    let h = ["id", "time               ", "pair    ", "price", "type", "volume", "position", "average_open    ", "cash_pnl            ", "fee"];    
+    let table = new Table(h);
+    log(table.header_row_str());
     
     const row_callback = function (err, row) {
-        // id, time, pair, price, type, volume, position, average_open, cash_pnl, fee
         if (row) {
-            log(`${row.id} ${row.time} ${row.pair} | ${row.price.toFixed(2)}  ${row.type} ${row.volume.toFixed(2)} |\
-            p: ${row.position.toFixed(2)} ao: ${row.average_open.toFixed(2)}  c: ${row.cash_pnl.toFixed(2)} fee: ${row.fee.toFixed(2)}`)
+            let r = [row.id, row.time, row.pair, row.price, row.type, row.volume, row.position, row.average_open, row.cash_pnl, row.fee]
+            log(table.row_to_str(r));
         }
     }
     await app.process_trade_pnl(nr_rows, row_callback);
@@ -46,15 +88,19 @@ async function show_trade_pnl(nr_rows) {
 async function show_live_pnl(nr_rows) {
     log("\n==========\n==Live PnL\n==========\n");
     
+    let h = ["pair    ", "position", "average_open    ", "price   ", "PnL (term)      ", "PnL %"];    
+    let table = new Table(h);
+    log(table.header_row_str());
+    
     async function get_live_pnl(row) {
         let price = await exchange.get_rate(row.pair);
         let ao = row.average_open;
         let cash_pnl = row.position *(price - ao);
         let rel_pnl = (price / ao -1) * 100;
         let term = row.pair.substring(5);
-        let msg = row.pair + " p: " + row.position.toFixed(2) + " ao: " + ao.toFixed(2) + " price: " + price.toFixed(2) +
-            " PnL (" + term + "): " + cash_pnl.toFixed(2) + " PnL rel: " + rel_pnl.toFixed(2) + " %";         
-        log(msg);
+        
+        let r = [row.pair, row.position, ao, price, cash_pnl, rel_pnl];        
+        log(table.row_to_str(r));
     }
     
     await app.process_live_pnl(get_live_pnl);
@@ -67,7 +113,7 @@ let main = async function(sync_new_trades) {
     let nr_rows = 5;
     if (sync_new_trades) {
         let nr_new_trades = await app.fetch_new_trades();
-        log("Fetched " + nr_new_trades + " trades.");
+        log("Fetched " + nr_new_trades + " new trades.");
         // If no new trades, then show pnl for the last 5.
         nr_rows = Math.max(nr_new_trades, nr_rows);
     }
@@ -79,8 +125,3 @@ let main = async function(sync_new_trades) {
 
 
 main(parser.sync);
-//if ( typeof parser.pair !== 'undefined' && parser.pair ) {
-//    main(parser.pair);
-//} else { // if program was called with no arguments, show help.
-//    parser.help();
-//}

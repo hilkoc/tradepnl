@@ -65,7 +65,6 @@ class App {
                 trade.fee = parseFloat(trade.fee);
                 all_trades.unshift(trade); // Add at beginning to reverse the order.  
             });
-            console.log("count: " + count);
             
             ofs += BATCH_SIZE;
             has_more = (count > 0);

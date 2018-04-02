@@ -132,11 +132,11 @@ class Storage {
             reject(err);
         }
         if (row) {
-            console.log("Last Trade is:");
+//            console.log("Last Trade is:");
             row.price = parseFloat(row.price);
             row.volume = parseFloat(row.volume);
             row.fee = parseFloat(row.fee);
-            console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price.toFixed(2)} ${row.volume.toFixed(2)} ${row.fee.toFixed(2)}`);
+//            console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price.toFixed(2)} ${row.volume.toFixed(2)} ${row.fee.toFixed(2)}`);
             resolve(row);
         } else {
             console.log("No trades found!");

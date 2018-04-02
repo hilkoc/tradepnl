@@ -47,8 +47,6 @@ class Exchange {
         if (offset) {
             params.ofs = offset;
         }
-        console.log(params);
-        
         return new Promise( (resolve, reject) => {
             this.kraken.api('TradesHistory', params, function callback(err, result) {
                 if (err) {
