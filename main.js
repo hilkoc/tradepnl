@@ -17,7 +17,7 @@ const parser = require('commander');
 
 parser
     .version(pkg.verion)
-    .option('--sync <sync>', 'If enabled, fetch new trades from the excange and save them in the database.')
+    .option('--no-sync', 'Do not fetch new trades from the exchange')
     .parse(process.argv);
 
 
@@ -71,7 +71,7 @@ class Table {
 async function show_trade_pnl(nr_rows) {
     log("Showing PnL for the last " + nr_rows + " trades.\n");
     
-    let h = ["id", "time               ", "pair    ", "price", "type", "volume", "position", "average_open    ", "cash_pnl            ", "fee"];    
+    let h = ["id", "time               ", "pair    ", "price  ", "type", "volume", "position", "average_open", "cash_pnl ", "fee"];    
     let table = new Table(h);
     log(table.header_row_str());
     
