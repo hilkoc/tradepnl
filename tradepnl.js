@@ -19,21 +19,22 @@ class App {
         let prev_volume = prev_position.position;
         let new_position, avg_open, cpnl;
         if (trade.type == 'buy') {
-        new_position = prev_volume + trade_volume;
-        
-        avg_open = (prev_volume * prev_position.average_open + trade_volume * trade.price) / (prev_volume + trade_volume);
-        cpnl = 0;
+            new_position = prev_volume + trade_volume;
+            avg_open = (prev_volume * prev_position.average_open + trade_volume * trade.price) / (prev_volume + trade_volume);
+            cpnl = 0;
         } else {
-        // Sell trade
-        new_position = prev_volume - trade_volume;
-        avg_open = prev_position.average_open || trade.price;
-        cpnl = trade_volume * (trade.price - avg_open);
+            // Sell trade
+            new_position = prev_volume - trade_volume;
+            avg_open = prev_position.average_open || trade.price;
+            cpnl = trade_volume * (trade.price - avg_open);
         }
 
         let position = {  trade_id: null, // set after function returns
             position: new_position,
             average_open: avg_open,
-            cash_pnl: cpnl };
+            cash_pnl: cpnl,
+            total_pnl: prev_position.total_pnl + cpnl,
+            total_fees: prev_position.total_fees + trade.fee};
         return position;
     }
 

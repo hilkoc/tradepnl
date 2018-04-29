@@ -24,7 +24,9 @@ const CREATE_TABLE_POSITIONS = "CREATE TABLE IF NOT EXISTS positions ( \
     trade_id INTEGER PRIMARY KEY REFERENCES trades (id) ON DELETE CASCADE, \
     position REAL NOT NULL, \
     average_open REAL NOT NULL, \
-    cash_pnl REAL NOT NULL) ;";
+    cash_pnl REAL NOT NULL, \
+    total_pnl REAL NOT NULL, \
+    total_fees REAL NOT NULL) ;";
 ;
 
 const CREATE_VIEW_POSITIONS = "CREATE VIEW IF NOT EXISTS view_positions as  \
@@ -52,15 +54,14 @@ class Storage {
     /** Manages the connection with the database */
     
     on_error(success_msg=null) {
-    return (err) => {
-        if (err) {
-        console.error(err.message);
-        throw err;
+        return (err) => {
+            if (err) {
+                console.error(err.message);
+                throw err;
+            }
+            // if (success_msg) {
+            //     console.log(success_msg);
         }
-//        if (success_msg) {
-//        console.log(success_msg);
-//        }
-    }
     }
     
     constructor(db_file) {
@@ -70,12 +71,12 @@ class Storage {
     
     /** Create tables and initialize the database. */
     init() {
-    this.db.serialize(() => {
+        this.db.serialize(() => {
             this.db.run(CREATE_TABLE_TRADES, this.on_error("Created table trades"))
             .run(CREATE_TABLE_POSITIONS, this.on_error("Created table positions"))
             .run(CREATE_VIEW_POSITIONS, this.on_error("Created view"))
             .run("PRAGMA foreign_keys=ON", this.on_error("Foreign keys enabled"));
-    });
+        });
     }
     
     close() {
@@ -83,27 +84,27 @@ class Storage {
     }
     
     save_trade(trade) {
-    return new Promise((resolve, reject) => {
-        this.db.run(SAVE_TRADE, [trade.ext_id, trade.pair, trade.time, trade.type, trade.price, trade.vol, trade.fee], function(err) {
+        return new Promise((resolve, reject) => {
+            this.db.run(SAVE_TRADE, [trade.ext_id, trade.pair, trade.time, trade.type, trade.price, trade.vol, trade.fee], function(err) {
             if (err) {
-            console.log(err.message);
-            reject(err);
+                console.log(err.message);
+                reject(err);
             }
                 resolve(this.lastID);
             });
-    });
+        });
     }
     
     save_position(position) {
-    return new Promise((resolve, reject) => {
-        this.db.run(SAVE_POSITION, [position.trade_id, position.position, position.average_open, position.cash_pnl], function(err) {
+        return new Promise((resolve, reject) => {
+            this.db.run(SAVE_POSITION, [position.trade_id, position.position, position.average_open, position.cash_pnl], function(err) {
             if (err) {
-            console.log(err.message);
-            reject(err);
+                console.log(err.message);
+                reject(err);
             }
                 resolve(this.lastID);
             });
-    });
+        });
     }
 
 
@@ -126,61 +127,61 @@ class Storage {
     }
     
     get_last_trade() {
-    return new Promise((resolve, reject) => {
-        this.db.get(GET_LAST_TRADE, [], (err, row) => {
-        if (err) {
-            reject(err);
-        }
-        if (row) {
-//            console.log("Last Trade is:");
-            row.price = parseFloat(row.price);
-            row.volume = parseFloat(row.volume);
-            row.fee = parseFloat(row.fee);
-//            console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price.toFixed(2)} ${row.volume.toFixed(2)} ${row.fee.toFixed(2)}`);
-            resolve(row);
-        } else {
-            console.log("No trades found!");
-            resolve(null);
-        }
+        return new Promise((resolve, reject) => {
+            this.db.get(GET_LAST_TRADE, [], (err, row) => {
+            if (err) {
+                reject(err);
+            }
+            if (row) {
+    //            console.log("Last Trade is:");
+                row.price = parseFloat(row.price);
+                row.volume = parseFloat(row.volume);
+                row.fee = parseFloat(row.fee);
+    //            console.log(`${row.id} ${row.ext_id}  ${row.pair} ${row.time} ${row.type} ${row.price.toFixed(2)} ${row.volume.toFixed(2)} ${row.fee.toFixed(2)}`);
+                resolve(row);
+            } else {
+                console.log("No trades found!");
+                resolve(null);
+            }
+            });
         });
-    });
     }
     
     get_last_position(pair) {
-    return new Promise((resolve, reject) => {
-        this.db.get(GET_LAST_POSITION, [pair], (err, row) => {
-        if (err) {
-            console.error(err.message);
-            reject(err);
-        }
-        if (row) {
-            row.position = parseFloat(row.position);
-            row.average_open = parseFloat(row.average_open);
-            row.cash_pnl = parseFloat(row.cash_pnl);
-            resolve(row);
-        } else {
-            console.log("No previous position found!");
-            resolve(zero_position);
-        }
+        return new Promise((resolve, reject) => {
+            this.db.get(GET_LAST_POSITION, [pair], (err, row) => {
+            if (err) {
+                console.error(err.message);
+                reject(err);
+            }
+            if (row) {
+                row.position = parseFloat(row.position);
+                row.average_open = parseFloat(row.average_open);
+                row.cash_pnl = parseFloat(row.cash_pnl);
+                resolve(row);
+            } else {
+                console.log("No previous position found!");
+                resolve(zero_position);
+            }
+            });
         });
-    });
     }
     
     get_all_positions() {
-    return new Promise((resolve, reject) => {
-        this.db.all(GET_ALL_LAST_POSITIONS, [], (err, rows) => {
-        if (err) {
-            console.error(err.message);
-            reject(err);
-        }
-        if (rows) {
-            resolve(rows);
-        } else {
-            console.log("No positions found!");
-            resolve([]);
-        }
+        return new Promise((resolve, reject) => {
+            this.db.all(GET_ALL_LAST_POSITIONS, [], (err, rows) => {
+            if (err) {
+                console.error(err.message);
+                reject(err);
+            }
+            if (rows) {
+                resolve(rows);
+            } else {
+                console.log("No positions found!");
+                resolve([]);
+            }
+            });
         });
-    });
     }
 }
 

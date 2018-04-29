@@ -22,15 +22,15 @@ class Exchange {
     
     /** Display user's balance */
     get_balance() {
-    return new Promise( (resolve, reject) => {
-        this.kraken.api('Balance', function callback(err, result) {
-        if (err) {
-            this.on_error(err);
-            reject(err);
-        }
-        resolve(result.result);
+        return new Promise( (resolve, reject) => {
+            this.kraken.api('Balance', function callback(err, result) {
+            if (err) {
+                this.on_error(err);
+                reject(err);
+            }
+            resolve(result.result);
+            });
         });
-    });
     }
 
     /** 
@@ -98,8 +98,8 @@ module.exports.makeExchange = function () {
     const key          = process.env.API_KEY;
     const secret       = process.env.API_SECRET;
     if (!key || !secret) {
-    console.warn("No API keys found! Only public API methods can be used.");
-    console.warn("    Run:\n    export API_KEY=<api key here>\n    export API_SECRET=<api secret key here>");
+        console.warn("No API keys found! Only public API methods can be used.");
+        console.warn("    Run:\n    export API_KEY=<api key here>\n    export API_SECRET=<api secret key here>");
     }
     let exchange = new Exchange(key, secret);
     return exchange;
