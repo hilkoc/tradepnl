@@ -68,13 +68,13 @@ class Table {
 async function show_trade_pnl(nr_rows) {
     log("Showing PnL for the last " + nr_rows + " trades.\n");
     
-    let h = ["id", "time               ", "pair    ", "price  ", "type", "volume", "position", "average_open", "cash_pnl ", "fee"];    
+    let h = ["id", "time               ", "pair    ", "price  ", "type", "volume", "position", "average_open", "cash_pnl  ", "fee    ", "total pnl ", "total fees"];  
     let table = new Table(h);
     log(table.header_row_str());
     
     const row_callback = function (err, row) {
         if (row) {
-            let r = [row.id, row.time, row.pair, row.price, row.type, row.volume, row.position, row.average_open, row.cash_pnl, row.fee]
+            let r = [row.id, row.time, row.pair, row.price, row.type, row.volume, row.position, row.average_open, row.cash_pnl, row.fee, row.total_pnl, row.total_fees]
             log(table.row_to_str(r));
         }
     }

@@ -31,11 +31,11 @@ const CREATE_TABLE_POSITIONS = "CREATE TABLE IF NOT EXISTS positions ( \
 
 const CREATE_VIEW_POSITIONS = "CREATE VIEW IF NOT EXISTS view_positions as  \
         SELECT id, datetime(time,'unixepoch') as time, pair, price, type, volume, \
-        position, average_open, cash_pnl, fee \
+        position, average_open, cash_pnl, fee, total_pnl, total_fees \
     FROM trades INNER JOIN positions ON trades.id = positions.trade_id ;";
 
 const SAVE_TRADE = "INSERT INTO trades (ext_id, pair, time, type, price, volume, fee) VALUES (?, ?, ?, ?, ?, ?, ?) ;";
-const SAVE_POSITION = "INSERT INTO positions (trade_id, position, average_open, cash_pnl) VALUES (?, ?, ?, ?) ;";
+const SAVE_POSITION = "INSERT INTO positions (trade_id, position, average_open, cash_pnl, total_pnl, total_fees) VALUES (?, ?, ?, ?, ?, ?) ;";
 const GET_POSITION = "SELECT * FROM (SELECT * FROM view_positions ORDER BY id DESC LIMIT ? ) ORDER BY id ASC;";
 const GET_LAST_TRADE = "SELECT * FROM trades WHERE id = (SELECT MAX(id) FROM trades );";
 
@@ -48,7 +48,9 @@ const GET_ALL_LAST_POSITIONS = "SELECT view_positions.pair as pair, position, av
 const zero_position = { trade_id: null,
     position: 0.0,
     average_open: null,
-    cash_pnl: 0.0};
+    cash_pnl: 0.0,
+    total_pnl: 0.0,
+    total_fees: 0.0};
 
 class Storage {
     /** Manages the connection with the database */
@@ -97,7 +99,7 @@ class Storage {
     
     save_position(position) {
         return new Promise((resolve, reject) => {
-            this.db.run(SAVE_POSITION, [position.trade_id, position.position, position.average_open, position.cash_pnl], function(err) {
+            this.db.run(SAVE_POSITION, [position.trade_id, position.position, position.average_open, position.cash_pnl, position.total_pnl, position.total_fees], function(err) {
             if (err) {
                 console.log(err.message);
                 reject(err);
