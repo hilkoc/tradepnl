@@ -9,14 +9,11 @@ const storage = require('./storage').makeStorage();
 const App = require('./tradepnl');
 const app = new App(exchange, storage);
 
-
-let path = require('path');
-let pkg = require( path.join(__dirname, 'package.json') );
-
+const pkg = require('./package.json');
 const parser = require('commander');
 
 parser
-    .version(pkg.verion)
+    .version(pkg.version, '-v, --version')
     .option('--no-sync', 'Do not fetch new trades from the exchange')
     .parse(process.argv);
 
