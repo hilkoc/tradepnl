@@ -55,7 +55,11 @@ class Table {
         for (let i = 0; i < this.headers.length; i++) {
             let v = r[i];
             if (typeof v == 'number') {
-                v = v.toFixed(2);
+                if (this.headers[i]== 'position') {
+                    v = v.toFixed(5);
+                } else {
+                    v = v.toFixed(2);
+                }
             }
             s += v.padStart(this.hl[i]) + this.SEP;
         }
