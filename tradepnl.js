@@ -18,15 +18,16 @@ class App {
         let trade_volume = trade.vol;
         let prev_volume = prev_position.position;
         let new_position, avg_open, cpnl;
+        
         if (trade.type == 'buy') {
             new_position = prev_volume + trade_volume;
             avg_open = (prev_volume * prev_position.average_open + trade_volume * trade.price) / (prev_volume + trade_volume);
-            cpnl = 0;
+            cpnl = -trade.fee;
         } else {
             // Sell trade
             new_position = prev_volume - trade_volume;
             avg_open = prev_position.average_open || trade.price;
-            cpnl = trade_volume * (trade.price - avg_open);
+            cpnl = trade_volume * (trade.price - avg_open) - trade.fee;
         }
 
         let position = {  trade_id: null, // set after function returns
