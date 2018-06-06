@@ -1,6 +1,7 @@
 # Trade PnL
 Command line tool to fetch full trade history from Kraken and analyze past trades, current positions and profit and loss.
 
+Note: A GUI version of this tool is available in [this fork of Gekko](https://github.com/hilkoc/gekko/tree/2028-pnl-reporting)
 
 ## Features
 
@@ -19,6 +20,7 @@ Command line tool to fetch full trade history from Kraken and analyze past trade
 + A recent version of nodejs
 
 ## Installation
+
  + Install [nodejs](https://nodejs.org)
  + Clone this repository and then run:
     ```bash
@@ -49,6 +51,5 @@ Finally, run the tradepnl application with:
  + Better support for trading overlapping currency pairs
  + Support for margin trades and short positions
  + Support for more exchanges
- + GUI
- 
- Contributers and constructive feedback are welcome.
+
+Contributions and feedback welcome.
